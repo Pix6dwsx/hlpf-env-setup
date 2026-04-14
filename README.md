@@ -1,56 +1,91 @@
-# hlpf-env-setup
-
 ## Student
 - Name: Лещенко Дмитро
 - Group: 232.1
 
-## Практичне заняття №2 — NestJS + PostgreSQL + Redis
+## Практичне заняття №3 — CRUD REST API (NestJS + PostgreSQL + Docker)
 
-## Структура репозиторію
+---
 
+## Опис
+Реалізовано REST API для MiniShop з використанням NestJS, PostgreSQL, Docker та TypeORM.
+
+---
+
+## Структура проекту
+
+```
 .
 ├── src/
-├── Dockerfile
+│   ├── categories/
+│   ├── products/
+│   ├── migrations/
+│   ├── data-source.ts
+│   └── app.module.ts
 ├── docker-compose.yml
-├── .env.example
+├── Dockerfile
 └── README.md
+```
 
+---
 
 ## Запуск проекту
+
 ```bash
+cp .env.example .env
 docker compose up --build
 ```
-## Перевірка сервісів
-```text
-NAME                          IMAGE                       COMMAND                  SERVICE    STATUS                    PORTS
-hlpf-env-setup-app-1          hlpf-env-setup-app          "docker-entrypoint.s…"   app        running                   0.0.0.0:3000->3000/tcp
-hlpf-env-setup-postgres-1     postgres:16-alpine          "docker-entrypoint.s…"   postgres   running (healthy)         0.0.0.0:5432->5432/tcp
-hlpf-env-setup-redis-1        redis:7-alpine              "docker-entrypoint.s…"   redis      running (healthy)         0.0.0.0:6379->6379/tcp
+
+---
+
+## API Endpoints
+
+### Categories
+- GET /api/categories
+- GET /api/categories/:id
+- POST /api/categories
+- PATCH /api/categories/:id
+- DELETE /api/categories/:id
+
+### Products
+- GET /api/products
+- GET /api/products/:id
+- POST /api/products
+- PATCH /api/products/:id
+- DELETE /api/products/:id
+
+---
+
+## Міграції
+
+```bash
+docker compose exec app npm run migration:run
 ```
 
-## Перевірка PostgreSQL
-```text
-List of databases
-   Name    |  Owner   | Encoding
------------+----------+----------
- nestdb    | nestuser | UTF8
- postgres  | postgres | UTF8
- template0 | postgres | UTF8
- template1 | postgres | UTF8
+---
+
+## Перевірка БД
+
+```bash
+docker compose exec postgres psql -U nestuser -d nestdb -c "\dt"
 ```
-## Перевірка Redis
-```text
-PONG
+
+---
+
+## Тест API (приклад)
+
+```powershell
+Invoke-RestMethod -Method POST `
+-Uri http://localhost:3000/api/categories `
+-ContentType "application/json" `
+-Body '{"name":"Electronics"}'
 ```
-## Перевірка застосунку
-```text
-Hello World!
-http://localhost:3000
-```
-## Логи NestJS (фрагмент)
-```text
-[Nest] LOG [NestFactory] Starting Nest application...
-[Nest] LOG [InstanceLoader] AppModule dependencies initialized
-[Nest] LOG [TypeOrmModule] TypeORM initialized successfully
-[Nest] LOG [NestApplication] Nest application successfully started
-```
+
+---
+
+## Особливості
+
+- synchronize: false
+- Використані міграції (ручна + згенерована)
+- CRUD для categories та products
+- Docker запуск з нуля
+- Зв’язок ManyToOne (Product → Category)
