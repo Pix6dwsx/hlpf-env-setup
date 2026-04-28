@@ -3,47 +3,53 @@
 * Name: Лещенко Дмитро
 * Group: 232.1
 
-## Практичне заняття №4 — DTO + class-validator + Pipes
+## Практичне заняття №5 — JWT Authentication + Guards + RBAC
 
 ---
 
 ## Опис
 
-У цьому проєкті реалізовано валідацію вхідних даних для MiniShop API за допомогою DTO, class-validator та Pipes.
+У цьому проєкті реалізовано MiniShop API з повною системою автентифікації та авторизації:
+JWT (access token)
+bcrypt (хешування паролів)
+Guards (JwtAuthGuard, RolesGuard)
+RBAC (ролі: user / admin)
+Захист ендпоінтів
 
 ---
 
 ## Структура проекту
 
 ```
-.
-├── src/
-│   ├── categories/
-│   │   ├── dto/
-│   │   │   ├── create-category.dto.ts
-│   │   │   └── update-category.dto.ts
-│   │   ├── category.entity.ts
-│   │   ├── categories.module.ts
-│   │   ├── categories.service.ts
-│   │   └── categories.controller.ts
-│   ├── products/
-│   │   ├── dto/
-│   │   │   ├── create-product.dto.ts
-│   │   │   └── update-product.dto.ts
-│   │   ├── product.entity.ts
-│   │   ├── products.module.ts
-│   │   ├── products.service.ts
-│   │   └── products.controller.ts
-│   ├── common/
-│   │   └── pipes/
-│   │       └── trim.pipe.ts
-│   ├── migrations/
-│   ├── data-source.ts
-│   ├── main.ts
-│   └── app.module.ts
-├── Dockerfile
-├── docker-compose.yml
-└── README.md
+src/
+├── auth/
+│   ├── dto/
+│   │   ├── login.dto.ts
+│   │   └── register.dto.ts
+│   ├── auth.controller.ts
+│   ├── auth.module.ts
+│   └── auth.service.ts
+│
+├── users/
+│   ├── user.entity.ts
+│   ├── users.module.ts
+│   └── users.service.ts
+│
+├── common/
+│   ├── enums/
+│   │   └── role.enum.ts
+│   ├── guards/
+│   │   ├── jwt-auth.guard.ts
+│   │   └── roles.guard.ts
+│   ├── decorators/
+│   │   ├── current-user.decorator.ts
+│   │   └── roles.decorator.ts
+│
+├── products/
+├── categories/
+├── migrations/
+├── app.module.ts
+└── main.ts
 ```
 
 ---
@@ -57,78 +63,95 @@ docker compose up --build
 
 ---
 
-## Тестування валідації
+### API Endpoints
 
-### ❌ Порожнє ім’я категорії
+| Method | URL | Auth | Role |
+|--------|-----|------|------|
+| POST | /auth/register | ❌ | - |
+| POST | /auth/login | ❌ | - |
+| GET | /api/products | ❌ | - |
+| GET | /api/categories | ❌ | - |
+| POST | /api/products | ✅ | admin |
+| PATCH | /api/products/:id | ✅ | admin |
+| DELETE | /api/products/:id | ✅ | admin |
+| POST | /api/categories | ✅ | admin |
+| PATCH | /api/categories/:id | ✅ | admin |
+| DELETE | /api/categories/:id | ✅ | admin |
 
-```bash
-POST /api/categories
-{ "name": "" }
-```
 
-Результат:
+## 🧪 Тестування
 
-```
+### Реєстрація
+```powershell
+Invoke-RestMethod -Method POST http://localhost:3000/auth/register `
+-Headers @{ "Content-Type" = "application/json" } `
+-Body (@{
+  email = "admin@test.com"
+  password = "password123"
+  name = "Admin"
+} | ConvertTo-Json)
+
+### Логін
+Invoke-RestMethod -Method POST http://localhost:3000/auth/login `
+-Headers @{ "Content-Type" = "application/json" } `
+-Body (@{
+  email = "admin@test.com"
+  password = "password123"
+} | ConvertTo-Json)
+
+➡️ Відповідь:
+
 {
-  "message": ["name must be longer than or equal to 2 characters"],
-  "error": "Bad Request",
-  "statusCode": 400
+  "accessToken": "eyJhbGciOiJIUzI1NiIs..."
 }
-```
+❌ 401 Unauthorized (без токена)
+Invoke-RestMethod -Method POST http://localhost:3000/api/products `
+-Headers @{ "Content-Type" = "application/json" } `
+-Body (@{
+  name = "Test"
+  price = 10
+} | ConvertTo-Json)
 
----
+➡️ Результат:
 
-### ❌ Від’ємна ціна продукту
+{
+  "message": "Missing authorization token",
+  "statusCode": 401
+}
+❌ 403 Forbidden (роль user)
+Недостатньо прав доступу (Insufficient permissions)
+✅ Успішний запит (admin)
+Invoke-RestMethod -Method POST http://localhost:3000/api/products `
+-Headers @{
+  "Content-Type" = "application/json"
+  "Authorization" = "Bearer <TOKEN>"
+} `
+-Body (@{
+  name = "MacBook"
+  price = 2000
+} | ConvertTo-Json)
 
-```bash
-POST /api/products
-{ "name": "Test", "price": -5 }
-```
+➡️ Результат:
 
-Результат:
+{
+  "id": 1,
+  "name": "MacBook",
+  "price": 2000
+}
+✅ Створення категорії (admin)
+Invoke-RestMethod -Method POST http://localhost:3000/api/categories `
+-Headers @{
+  "Content-Type" = "application/json"
+  "Authorization" = "Bearer <TOKEN>"
+} `
+-Body (@{
+  name = "Electronics"
+} | ConvertTo-Json)
+🔐 Безпека
+Паролі зберігаються тільки у вигляді хешу (bcrypt)
+JWT використовується для авторизації
+Ролі обмежують доступ до ресурсів
+Захищені ендпоінти: POST / PATCH / DELETE
+🧠 Висновок
 
-```
-"price must not be less than 0.01"
-```
-
----
-
-### ❌ Зайве поле
-
-```bash
-POST /api/categories
-{ "name": "Test", "isAdmin": true }
-```
-
-Результат:
-
-```
-"property isAdmin should not exist"
-```
-
----
-
-### ✅ TrimPipe (обрізання пробілів)
-
-```bash
-POST /api/categories
-{ "name": "  Test  " }
-```
-
-Результат:
-
-```
-"name": "Test"
-```
-
----
-
-## Особливості
-
-* Використано DTO для типізації та валідації
-* Підключено глобальний ValidationPipe
-* Заборонені зайві поля (forbidNonWhitelisted)
-* Реалізовано кастомний TrimPipe
-* Повністю замінено body: any та Partial<>
-
----
+Було реалізовано повну систему автентифікації та авторизації з використанням JWT, Guards та RBAC. API підтримує розмежування доступу між користувачами та адміністраторами, забезпечуючи безпечну роботу з даними.
