@@ -9,6 +9,8 @@ import {
   ParseIntPipe,
 } from '@nestjs/common';
 import { CategoriesService } from './categories.service';
+import { CreateCategoryDto } from './dto/create-category.dto';
+import { UpdateCategoryDto } from './dto/update-category.dto';
 
 @Controller('api/categories')
 export class CategoriesController {
@@ -25,16 +27,16 @@ export class CategoriesController {
   }
 
   @Post()
-  create(@Body() body: { name: string; description?: string }) {
-    return this.service.create(body);
+  create(@Body() dto: CreateCategoryDto) {
+    return this.service.create(dto);
   }
 
   @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
-    @Body() body: { name?: string; description?: string },
+    @Body() dto: UpdateCategoryDto,
   ) {
-    return this.service.update(id, body);
+    return this.service.update(id, dto);
   }
 
   @Delete(':id')
