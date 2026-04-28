@@ -1,11 +1,9 @@
 services:
   app:
     build: .
+    command: sh -c "npm run build && npm run start:prod"
     ports:
       - "3000:3000"
-    volumes:
-      - ./:/app
-      - /app/node_modules
     depends_on:
       postgres:
         condition: service_healthy
