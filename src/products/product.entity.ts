@@ -20,13 +20,11 @@ export class Product {
   @Column({ nullable: true })
   description: string;
 
-@Column({ type: 'decimal', precision: 10, scale: 2 })
-price: number;
+  @Column({ type: 'decimal', precision: 10, scale: 2 })
+  price: number;
 
   @Column({ default: 0 })
   stock: number;
-@Column({ type: 'boolean', default: true })
-isActive: boolean;
 
   @ManyToOne(() => Category, { nullable: true })
   @JoinColumn({ name: 'category_id' })
