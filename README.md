@@ -1,156 +1,111 @@
 ## Student
+- Name: Leshchenko Dmytro
+- Group: 232/1
 
-* Name: Лещенко Дмитро
-* Group: 232.1
+## Практичне заняття №7 — Redis + Pagination + Filtering
 
----
-
-## Практичне заняття №6 — Interceptors + Exception Filters + Swagger
-
----
-
-## Опис
-
-У цьому проєкті реалізовано **MiniShop API**, який приведений до production-ready рівня.
-
-Додано:
-
-* 🔐 JWT Authentication (Bearer Token)
-* 🛡 Guards + RBAC (ролі: user / admin)
-* 📊 LoggingInterceptor — логування HTTP-запитів
-* 🔄 TransformInterceptor — єдиний формат відповідей
-* ❗ HttpExceptionFilter — стандартизована обробка помилок з traceId
-* 📘 Swagger (OpenAPI) — документація + тестування API
-
----
-
-## Структура проєкту
-
-```bash
-src/
-├── auth/
-├── users/
-├── categories/
-├── products/
-├── common/
-│   ├── enums/
-│   │   └── role.enum.ts
-│   ├── guards/
-│   │   ├── jwt-auth.guard.ts
-│   │   └── roles.guard.ts
-│   ├── decorators/
-│   │   ├── current-user.decorator.ts
-│   │   └── roles.decorator.ts
-│   ├── interceptors/
-│   │   ├── logging.interceptor.ts
-│   │   └── transform.interceptor.ts
-│   ├── filters/
-│   │   └── http-exception.filter.ts
-│   └── pipes/
-│       └── trim.pipe.ts
-├── migrations/
-├── main.ts
-└── app.module.ts
-```
-
----
-
-## Запуск проєкту
-
+### Запуск проекту
 ```bash
 cp .env.example .env
-docker compose up --build
+docker compose up --build -d
+docker compose run --rm app npm run seed
 ```
 
----
+## API: GET /api/products
 
-## Swagger UI
+| Параметр   | Тип    | Default     | Опис |
+|------------|--------|------------|------|
+| page       | number | 1          | Номер сторінки |
+| pageSize   | number | 10         | Елементів на сторінку (max 100) |
+| sort       | string | createdAt  | Поле сортування |
+| order      | asc/desc | desc     | Напрямок сортування |
+| categoryId | number | -          | Фільтр за категорією |
+| minPrice   | number | -          | Мінімальна ціна |
+| maxPrice   | number | -          | Максимальна ціна |
+| search     | string | -          | Пошук за назвою |
 
-📍 Доступний за адресою:
-
-```
-http://localhost:3000/api/docs
-```
-
-![Swagger](swagger-screenshot.png)
-
----
-
-## Формат успішної відповіді
+## Приклад відповіді
 
 ```json
 {
-  "data": { ... },
-  "statusCode": 200,
-  "timestamp": "2026-04-28T12:00:00.000Z"
-}
-```
-
----
-
-## Формат помилки
-
-```json
-{
-  "error": {
-    "code": 400,
-    "message": "Validation failed",
-    "details": [
-      "name must be longer than or equal to 2 characters"
+  "data": {
+    "items": [
+      {
+        "id": 30,
+        "name": "Hoodie NestJS v3",
+        "price": "75.00"
+      }
     ],
-    "traceId": "a1b2c3d4-e5f6"
+    "meta": {
+      "page": 1,
+      "pageSize": 5,
+      "total": 30,
+      "totalPages": 6
+    }
   },
-  "timestamp": "2026-04-28T12:00:00.000Z"
+  "statusCode": 200,
+  "timestamp": "2026-04-28T13:05:06.168Z"
 }
 ```
 
----
+## Тест пагінації
 
-## Приклад логів (LoggingInterceptor)
+```bash
+Invoke-RestMethod "http://localhost:3000/api/products?page=1&pageSize=5"
+```
+
+## Тест фільтрації
+
+```bash
+Invoke-RestMethod "http://localhost:3000/api/products?categoryId=1"
+Invoke-RestMethod "http://localhost:3000/api/products?minPrice=100&maxPrice=1000"
+```
+
+## Тест пошуку
+
+```bash
+Invoke-RestMethod "http://localhost:3000/api/products?search=iphone"
+```
+
+## Тест сортування
+
+```bash
+Invoke-RestMethod "http://localhost:3000/api/products?sort=price&order=asc"
+```
+
+## Тест кешування (Redis)
+
+```bash
+docker compose exec redis redis-cli KEYS "products:*"
+```
+
+## Тест інвалідації кешу
+
+1. Виконати GET запит  
+2. Виконати POST /api/products  
+3. Перевірити кеш:
+
+```bash
+docker compose exec redis redis-cli KEYS "products:*"
+```
+
+Очікується:
 
 ```text
-[HTTP] GET /api/products — 200 — 8ms
-[HTTP] POST /api/products — 201 — 12ms
-[HTTP] GET /api/products/999 — 404 — 5ms
+(empty array)
 ```
 
----
+## Swagger
 
-## Тестування через Swagger
+http://localhost:3000/api/docs
 
-1. Відкрити Swagger UI
-2. Виконати `POST /auth/login`
-3. Скопіювати `accessToken`
-4. Натиснути **Authorize** і вставити токен
-5. Викликати захищені ендпоінти (`POST /api/products`)
+## Результат
 
----
-
-## Приклад помилки (traceId)
-
-```json
-{
-  "error": {
-    "code": 404,
-    "message": "Product #999 not found",
-    "traceId": "5362d95d-e24e-499f-961d-7b387e366dc3"
-  },
-  "timestamp": "2026-04-28T12:19:14.920Z"
-}
-```
-
----
-
-## Висновок
-
-У результаті виконання роботи було створено production-ready API з:
-
-* централізованим логуванням
-* єдиним форматом відповідей
-* стандартизованими помилками
-* повною Swagger документацією
-
-API готовий до інтеграції з frontend та масштабування.
-
----
-
+- Реалізована пагінація (page, pageSize)
+- Додано сортування (sort, order)
+- Реалізована фільтрація (categoryId, minPrice, maxPrice)
+- Додано пошук (ILIKE)
+- Використано QueryBuilder
+- Реалізовано кешування через Redis
+- Додано інвалідацію кешу
+- Створено seed-скрипт (30 продуктів)
