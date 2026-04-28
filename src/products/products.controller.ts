@@ -8,6 +8,7 @@ import {
   Body,
   ParseIntPipe,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 
 import {
@@ -20,6 +21,7 @@ import {
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { ProductQueryDto } from './dto/product-query.dto';
 
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -32,26 +34,22 @@ export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Get all products' })
-  @ApiResponse({ status: 200, description: 'List of products' })
-  findAll() {
-    return this.productsService.findAll();
+  @ApiOperation({ summary: 'Get products with pagination' })
+  @ApiResponse({ status: 200 })
+  findAll(@Query() query: ProductQueryDto) {
+    return this.productsService.findAll(query);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get product by ID' })
-  @ApiResponse({ status: 200, description: 'Product found' })
-  @ApiResponse({ status: 404, description: 'Product not found' })
+  @ApiOperation({ summary: 'Get product by id' })
+  @ApiResponse({ status: 200 })
+  @ApiResponse({ status: 404 })
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.productsService.findOne(id);
   }
 
   @Post()
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Create product (admin only)' })
-  @ApiResponse({ status: 201, description: 'Product created' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   create(@Body() dto: CreateProductDto) {
@@ -60,9 +58,6 @@ export class ProductsController {
 
   @Patch(':id')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update product (admin only)' })
-  @ApiResponse({ status: 200, description: 'Product updated' })
-  @ApiResponse({ status: 404, description: 'Product not found' })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   update(
@@ -74,8 +69,6 @@ export class ProductsController {
 
   @Delete(':id')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Delete product (admin only)' })
-  @ApiResponse({ status: 200, description: 'Product deleted' })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   remove(@Param('id', ParseIntPipe) id: number) {
