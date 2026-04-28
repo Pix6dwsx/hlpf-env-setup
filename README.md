@@ -3,38 +3,35 @@
 * Name: Лещенко Дмитро
 * Group: 232.1
 
-## Практичне заняття №5 — JWT Authentication + Guards + RBAC
+---
+
+## Практичне заняття №6 — Interceptors + Exception Filters + Swagger
 
 ---
 
 ## Опис
 
-У цьому проєкті реалізовано MiniShop API з повною системою автентифікації та авторизації:
-JWT (access token)
-bcrypt (хешування паролів)
-Guards (JwtAuthGuard, RolesGuard)
-RBAC (ролі: user / admin)
-Захист ендпоінтів
+У цьому проєкті реалізовано **MiniShop API**, який приведений до production-ready рівня.
+
+Додано:
+
+* 🔐 JWT Authentication (Bearer Token)
+* 🛡 Guards + RBAC (ролі: user / admin)
+* 📊 LoggingInterceptor — логування HTTP-запитів
+* 🔄 TransformInterceptor — єдиний формат відповідей
+* ❗ HttpExceptionFilter — стандартизована обробка помилок з traceId
+* 📘 Swagger (OpenAPI) — документація + тестування API
 
 ---
 
-## Структура проекту
+## Структура проєкту
 
-```
+```bash
 src/
 ├── auth/
-│   ├── dto/
-│   │   ├── login.dto.ts
-│   │   └── register.dto.ts
-│   ├── auth.controller.ts
-│   ├── auth.module.ts
-│   └── auth.service.ts
-│
 ├── users/
-│   ├── user.entity.ts
-│   ├── users.module.ts
-│   └── users.service.ts
-│
+├── categories/
+├── products/
 ├── common/
 │   ├── enums/
 │   │   └── role.enum.ts
@@ -44,17 +41,21 @@ src/
 │   ├── decorators/
 │   │   ├── current-user.decorator.ts
 │   │   └── roles.decorator.ts
-│
-├── products/
-├── categories/
+│   ├── interceptors/
+│   │   ├── logging.interceptor.ts
+│   │   └── transform.interceptor.ts
+│   ├── filters/
+│   │   └── http-exception.filter.ts
+│   └── pipes/
+│       └── trim.pipe.ts
 ├── migrations/
-├── app.module.ts
-└── main.ts
+├── main.ts
+└── app.module.ts
 ```
 
 ---
 
-## Запуск проекту
+## Запуск проєкту
 
 ```bash
 cp .env.example .env
@@ -63,95 +64,93 @@ docker compose up --build
 
 ---
 
-### API Endpoints
+## Swagger UI
 
-| Method | URL | Auth | Role |
-|--------|-----|------|------|
-| POST | /auth/register | ❌ | - |
-| POST | /auth/login | ❌ | - |
-| GET | /api/products | ❌ | - |
-| GET | /api/categories | ❌ | - |
-| POST | /api/products | ✅ | admin |
-| PATCH | /api/products/:id | ✅ | admin |
-| DELETE | /api/products/:id | ✅ | admin |
-| POST | /api/categories | ✅ | admin |
-| PATCH | /api/categories/:id | ✅ | admin |
-| DELETE | /api/categories/:id | ✅ | admin |
+📍 Доступний за адресою:
 
+```
+http://localhost:3000/api/docs
+```
 
-## 🧪 Тестування
+![Swagger](swagger-screenshot.png)
 
-### Реєстрація
-```powershell
-Invoke-RestMethod -Method POST http://localhost:3000/auth/register `
--Headers @{ "Content-Type" = "application/json" } `
--Body (@{
-  email = "admin@test.com"
-  password = "password123"
-  name = "Admin"
-} | ConvertTo-Json)
+---
 
-### Логін
-Invoke-RestMethod -Method POST http://localhost:3000/auth/login `
--Headers @{ "Content-Type" = "application/json" } `
--Body (@{
-  email = "admin@test.com"
-  password = "password123"
-} | ConvertTo-Json)
+## Формат успішної відповіді
 
-➡️ Відповідь:
-
+```json
 {
-  "accessToken": "eyJhbGciOiJIUzI1NiIs..."
+  "data": { ... },
+  "statusCode": 200,
+  "timestamp": "2026-04-28T12:00:00.000Z"
 }
-❌ 401 Unauthorized (без токена)
-Invoke-RestMethod -Method POST http://localhost:3000/api/products `
--Headers @{ "Content-Type" = "application/json" } `
--Body (@{
-  name = "Test"
-  price = 10
-} | ConvertTo-Json)
+```
 
-➡️ Результат:
+---
 
+## Формат помилки
+
+```json
 {
-  "message": "Missing authorization token",
-  "statusCode": 401
+  "error": {
+    "code": 400,
+    "message": "Validation failed",
+    "details": [
+      "name must be longer than or equal to 2 characters"
+    ],
+    "traceId": "a1b2c3d4-e5f6"
+  },
+  "timestamp": "2026-04-28T12:00:00.000Z"
 }
-❌ 403 Forbidden (роль user)
-Недостатньо прав доступу (Insufficient permissions)
-✅ Успішний запит (admin)
-Invoke-RestMethod -Method POST http://localhost:3000/api/products `
--Headers @{
-  "Content-Type" = "application/json"
-  "Authorization" = "Bearer <TOKEN>"
-} `
--Body (@{
-  name = "MacBook"
-  price = 2000
-} | ConvertTo-Json)
+```
 
-➡️ Результат:
+---
 
+## Приклад логів (LoggingInterceptor)
+
+```text
+[HTTP] GET /api/products — 200 — 8ms
+[HTTP] POST /api/products — 201 — 12ms
+[HTTP] GET /api/products/999 — 404 — 5ms
+```
+
+---
+
+## Тестування через Swagger
+
+1. Відкрити Swagger UI
+2. Виконати `POST /auth/login`
+3. Скопіювати `accessToken`
+4. Натиснути **Authorize** і вставити токен
+5. Викликати захищені ендпоінти (`POST /api/products`)
+
+---
+
+## Приклад помилки (traceId)
+
+```json
 {
-  "id": 1,
-  "name": "MacBook",
-  "price": 2000
+  "error": {
+    "code": 404,
+    "message": "Product #999 not found",
+    "traceId": "5362d95d-e24e-499f-961d-7b387e366dc3"
+  },
+  "timestamp": "2026-04-28T12:19:14.920Z"
 }
-✅ Створення категорії (admin)
-Invoke-RestMethod -Method POST http://localhost:3000/api/categories `
--Headers @{
-  "Content-Type" = "application/json"
-  "Authorization" = "Bearer <TOKEN>"
-} `
--Body (@{
-  name = "Electronics"
-} | ConvertTo-Json)
-🔐 Безпека
-Паролі зберігаються тільки у вигляді хешу (bcrypt)
-JWT використовується для авторизації
-Ролі обмежують доступ до ресурсів
-Захищені ендпоінти: POST / PATCH / DELETE
-🧠 Висновок
+```
 
-Було реалізовано повну систему автентифікації та авторизації з використанням JWT, Guards та RBAC. API підтримує розмежування доступу між користувачами та адміністраторами, забезпечуючи безпечну роботу з даними.
+---
+
+## Висновок
+
+У результаті виконання роботи було створено production-ready API з:
+
+* централізованим логуванням
+* єдиним форматом відповідей
+* стандартизованими помилками
+* повною Swagger документацією
+
+API готовий до інтеграції з frontend та масштабування.
+
+---
+
