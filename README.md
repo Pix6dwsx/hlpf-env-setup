@@ -1,111 +1,168 @@
-## Student
-- Name: Leshchenko Dmytro
-- Group: 232/1
+# 🛒 MiniShop API
 
-## Практичне заняття №7 — Redis + Pagination + Filtering
+**Автор:** Leshchenko Dmytro  
+**Група:** 232/1  
 
-### Запуск проекту
+Production-ready REST API для інтернет-магазину, реалізований на NestJS з підтримкою автентифікації, ролей доступу, транзакційної бізнес-логіки та кешування.
+
+---
+
+## 📌 Опис
+
+MiniShop API — це масштабований backend для e-commerce платформи з чистою модульною архітектурою та повним набором базового функціоналу:
+
+- 🔐 Автентифікація (JWT)
+- 👤 Управління користувачами
+- 🗂 Категорії
+- 📦 Товари (з Redis кешуванням)
+- 🧾 Замовлення (транзакції + бізнес-логіка)
+
+---
+
+## ⚙️ Технології
+
+- **Framework:** NestJS (TypeScript)
+- **База даних:** PostgreSQL
+- **ORM:** TypeORM (міграції)
+- **Кешування:** Redis
+- **Автентифікація:** JWT
+- **Авторизація:** RBAC (user, admin)
+- **Валідація:** class-validator + class-transformer
+- **Документація:** Swagger (OpenAPI)
+- **Контейнеризація:** Docker
+
+---
+
+## 🚀 Запуск проєкту
+
 ```bash
 cp .env.example .env
 docker compose up --build -d
 docker compose run --rm app npm run seed
 ```
+## 🔐 Auth
 
-## API: GET /api/products
+POST /auth/register — Реєстрація
+POST /auth/login — Логін → JWT
 
-| Параметр   | Тип    | Default     | Опис |
-|------------|--------|------------|------|
-| page       | number | 1          | Номер сторінки |
-| pageSize   | number | 10         | Елементів на сторінку (max 100) |
-| sort       | string | createdAt  | Поле сортування |
-| order      | asc/desc | desc     | Напрямок сортування |
-| categoryId | number | -          | Фільтр за категорією |
-| minPrice   | number | -          | Мінімальна ціна |
-| maxPrice   | number | -          | Максимальна ціна |
-| search     | string | -          | Пошук за назвою |
+🗂 Categories
+```
+GET /api/categories — Список
+GET /api/categories/:id — Одна
+POST /api/categories — admin — Створити
+PATCH /api/categories/:id — admin — Оновити
+DELETE /api/categories/:id — admin — Видалити
+```
+## 📦 Products
+```
+GET /api/products — Список + pagination + filter
+GET /api/products/:id — Один
+POST /api/products — admin — Створити
+PATCH /api/products/:id — admin — Оновити
+DELETE /api/products/:id — admin — Видалити
+```
+## 🧾 Orders
+```
+POST /api/orders — user — Створити замовлення
+GET /api/orders — user/admin — Мої / Всі
+GET /api/orders/:id — user/admin — Одне (ownership)
+PATCH /api/orders/:id/status — admin — Змінити статус
+DELETE /api/orders/:id — admin — Видалити
+```
 
-## Приклад відповіді
-
-```json
+## 🧪 Приклад створення замовлення
+```
 {
-  "data": {
-    "items": [
-      {
-        "id": 30,
-        "name": "Hoodie NestJS v3",
-        "price": "75.00"
-      }
-    ],
-    "meta": {
-      "page": 1,
-      "pageSize": 5,
-      "total": 30,
-      "totalPages": 6
-    }
-  },
-  "statusCode": 200,
-  "timestamp": "2026-04-28T13:05:06.168Z"
+  "items": [
+    { "productId": 1, "quantity": 2 },
+    { "productId": 5, "quantity": 1 }
+  ]
 }
 ```
 
-## Тест пагінації
+## 🔄 Життєвий цикл замовлення
 
-```bash
-Invoke-RestMethod "http://localhost:3000/api/products?page=1&pageSize=5"
+pending   → confirmed, cancelled
+confirmed → shipped, cancelled
+shipped   → delivered
+delivered → ❌
+cancelled → ❌
+
+## 📊 Query параметри (Orders)
+
+page — номер сторінки
+pageSize — кількість елементів
+status — фільтр за статусом
+
+## 🧪 Тестування (PowerShell)
+Створення замовлення
 ```
-
-## Тест фільтрації
-
-```bash
-Invoke-RestMethod "http://localhost:3000/api/products?categoryId=1"
-Invoke-RestMethod "http://localhost:3000/api/products?minPrice=100&maxPrice=1000"
+Invoke-RestMethod `
+  -Method POST `
+  -Uri "http://localhost:3000/api/orders" `
+  -Headers @{ Authorization = "Bearer TOKEN" } `
+  -ContentType "application/json" `
+  -Body '{"items":[{"productId":1,"quantity":1}]}'
+Ownership check (403)
+Invoke-RestMethod `
+  -Method GET `
+  -Uri "http://localhost:3000/api/orders/1" `
+  -Headers @{ Authorization = "Bearer OTHER_USER_TOKEN" }
 ```
-
-## Тест пошуку
-
-```bash
-Invoke-RestMethod "http://localhost:3000/api/products?search=iphone"
+Зміна статусу (Admin)
 ```
-
-## Тест сортування
-
-```bash
-Invoke-RestMethod "http://localhost:3000/api/products?sort=price&order=asc"
+Invoke-RestMethod `
+  -Method PATCH `
+  -Uri "http://localhost:3000/api/orders/1/status" `
+  -Headers @{ Authorization = "Bearer ADMIN_TOKEN" } `
+  -ContentType "application/json" `
+  -Body '{"status":"confirmed"}'
 ```
-
-## Тест кешування (Redis)
-
-```bash
-docker compose exec redis redis-cli KEYS "products:*"
+Недостатній stock
 ```
-
-## Тест інвалідації кешу
-
-1. Виконати GET запит  
-2. Виконати POST /api/products  
-3. Перевірити кеш:
-
-```bash
-docker compose exec redis redis-cli KEYS "products:*"
+Invoke-RestMethod `
+  -Method POST `
+  -Uri "http://localhost:3000/api/orders" `
+  -Headers @{ Authorization = "Bearer TOKEN" } `
+  -ContentType "application/json" `
+  -Body '{"items":[{"productId":1,"quantity":99999}]}'
 ```
+## 🧠 Основні можливості
 
-Очікується:
+✅ Транзакції через QueryRunner
+✅ Перевірка stock (validation)
+✅ Автоматичний підрахунок totalPrice
+✅ Ownership check
+✅ Пагінація та фільтрація
+✅ Контроль переходів статусів
+✅ Redis кешування
+✅ JWT + RBAC
+✅ Swagger документація
 
-```text
-(empty array)
+## 📦 Структура проєкту
 ```
+src/
+├── auth/
+├── users/
+├── categories/
+├── products/
+├── orders/
+├── common/
+└── config/
+```
+## 🎯 Результат
+Реалізовано OrdersModule
+Додано транзакційну бізнес-логіку
+Реалізовано ownership check
+Додано пагінацію та фільтрацію
+Повна DTO валідація
+Swagger документація
+🏁 Висновок
 
-## Swagger
+MiniShop API — це приклад production-рівня backend системи:
 
-http://localhost:3000/api/docs
-
-## Результат
-
-- Реалізована пагінація (page, pageSize)
-- Додано сортування (sort, order)
-- Реалізована фільтрація (categoryId, minPrice, maxPrice)
-- Додано пошук (ILIKE)
-- Використано QueryBuilder
-- Реалізовано кешування через Redis
-- Додано інвалідацію кешу
-- Створено seed-скрипт (30 продуктів)
+Чиста модульна архітектура
+Масштабованість
+Безпечна авторизація
+Надійна обробка транзакцій
+Оптимізація через кешування
