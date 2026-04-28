@@ -1,13 +1,15 @@
 ## Student
-- Name: Лещенко Дмитро
-- Group: 232.1
 
-## Практичне заняття №3 — CRUD REST API (NestJS + PostgreSQL + Docker)
+* Name: Лещенко Дмитро
+* Group: 232.1
+
+## Практичне заняття №4 — DTO + class-validator + Pipes
 
 ---
 
 ## Опис
-Реалізовано REST API для MiniShop з використанням NestJS, PostgreSQL, Docker та TypeORM.
+
+У цьому проєкті реалізовано валідацію вхідних даних для MiniShop API за допомогою DTO, class-validator та Pipes.
 
 ---
 
@@ -17,12 +19,30 @@
 .
 ├── src/
 │   ├── categories/
+│   │   ├── dto/
+│   │   │   ├── create-category.dto.ts
+│   │   │   └── update-category.dto.ts
+│   │   ├── category.entity.ts
+│   │   ├── categories.module.ts
+│   │   ├── categories.service.ts
+│   │   └── categories.controller.ts
 │   ├── products/
+│   │   ├── dto/
+│   │   │   ├── create-product.dto.ts
+│   │   │   └── update-product.dto.ts
+│   │   ├── product.entity.ts
+│   │   ├── products.module.ts
+│   │   ├── products.service.ts
+│   │   └── products.controller.ts
+│   ├── common/
+│   │   └── pipes/
+│   │       └── trim.pipe.ts
 │   ├── migrations/
 │   ├── data-source.ts
+│   ├── main.ts
 │   └── app.module.ts
-├── docker-compose.yml
 ├── Dockerfile
+├── docker-compose.yml
 └── README.md
 ```
 
@@ -37,55 +57,78 @@ docker compose up --build
 
 ---
 
-## API Endpoints
+## Тестування валідації
 
-### Categories
-- GET /api/categories
-- GET /api/categories/:id
-- POST /api/categories
-- PATCH /api/categories/:id
-- DELETE /api/categories/:id
-
-### Products
-- GET /api/products
-- GET /api/products/:id
-- POST /api/products
-- PATCH /api/products/:id
-- DELETE /api/products/:id
-
----
-
-## Міграції
+### ❌ Порожнє ім’я категорії
 
 ```bash
-docker compose exec app npm run migration:run
+POST /api/categories
+{ "name": "" }
+```
+
+Результат:
+
+```
+{
+  "message": ["name must be longer than or equal to 2 characters"],
+  "error": "Bad Request",
+  "statusCode": 400
+}
 ```
 
 ---
 
-## Перевірка БД
+### ❌ Від’ємна ціна продукту
 
 ```bash
-docker compose exec postgres psql -U nestuser -d nestdb -c "\dt"
+POST /api/products
+{ "name": "Test", "price": -5 }
+```
+
+Результат:
+
+```
+"price must not be less than 0.01"
 ```
 
 ---
 
-## Тест API (приклад)
+### ❌ Зайве поле
 
-```powershell
-Invoke-RestMethod -Method POST `
--Uri http://localhost:3000/api/categories `
--ContentType "application/json" `
--Body '{"name":"Electronics"}'
+```bash
+POST /api/categories
+{ "name": "Test", "isAdmin": true }
+```
+
+Результат:
+
+```
+"property isAdmin should not exist"
+```
+
+---
+
+### ✅ TrimPipe (обрізання пробілів)
+
+```bash
+POST /api/categories
+{ "name": "  Test  " }
+```
+
+Результат:
+
+```
+"name": "Test"
 ```
 
 ---
 
 ## Особливості
 
-- synchronize: false
-- Використані міграції (ручна + згенерована)
-- CRUD для categories та products
-- Docker запуск з нуля
-- Зв’язок ManyToOne (Product → Category)
+* Використано DTO для типізації та валідації
+* Підключено глобальний ValidationPipe
+* Заборонені зайві поля (forbidNonWhitelisted)
+* Реалізовано кастомний TrimPipe
+* Повністю замінено body: any та Partial<>
+
+---
