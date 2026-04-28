@@ -9,20 +9,18 @@ import { ProductsModule } from './products/products.module';
 import { CategoriesModule } from './categories/categories.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
+import { OrdersModule } from './orders/orders.module';
 
 import { Product } from './products/product.entity';
 import { Category } from './categories/category.entity';
 import { User } from './users/user.entity';
-
-import { CreateTables1700000001CreateTables } from './migrations/1700000001-CreateTables';
-import { CreateUsers1777373555910 } from './migrations/1777373555910-CreateUsers';
+import { Order } from './orders/entities/order.entity';
+import { OrderItem } from './orders/entities/order-item.entity';
 
 @Module({
   imports: [
-    
     ConfigModule.forRoot({ isGlobal: true }),
 
-    
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.POSTGRES_HOST!,
@@ -31,22 +29,16 @@ import { CreateUsers1777373555910 } from './migrations/1777373555910-CreateUsers
       password: process.env.POSTGRES_PASSWORD!,
       database: process.env.POSTGRES_DB!,
 
-      entities: [Category, Product, User],
+      entities: [Category, Product, User, Order, OrderItem],
 
-      synchronize: false,
-      migrationsRun: true,
-
-      migrations: [
-        CreateTables1700000001CreateTables,
-        CreateUsers1777373555910,
-      ],
+      synchronize: true,
     }),
 
-    
     AuthModule,
     UsersModule,
     CategoriesModule,
     ProductsModule,
+    OrdersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
